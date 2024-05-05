@@ -26,7 +26,6 @@
 #include "common.h"
 #include "device_specific.h"
 
-#define MAX_SAFE_COUNT        0xfffffff0  // comparing against < 0xffffffff is always true -> we want to avoid 0xffffffff as end time of timeout
 #define TIMEOUT_TIME_MS       300
 
 
@@ -114,7 +113,7 @@ bool cmd_swd_test(uint32_t loop)
     if(0 == loop)
     {
         uint8_t* para_str = cli_get_parameter(0);
-        start_timeout(&to);
+        start_timeout(&to, TIMEOUT_TIME_MS);
         checked_swdv1 = false;
         checked_swdv2 = false;
         step = 0;
