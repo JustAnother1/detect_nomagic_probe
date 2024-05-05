@@ -86,8 +86,7 @@ static bool checked_swdv2;
 static bool single_location;
 static uint32_t step;
 static uint32_t location;
-static uint32_t timeout_time;
-static bool wait_for_wrap_around;
+static timeout_typ to;
 
 
 bool cmd_target_info(uint32_t loop)
@@ -108,31 +107,14 @@ bool cmd_target_info(uint32_t loop)
 // get called from CLI.
 // loop is 0 on first call and will increase by 1 on each following call.
 // return false means we are not finished,
-// return true mean we finished.
+// return true means we are finished.
 // returning false leads to this function being called again by CLI
 bool cmd_swd_test(uint32_t loop)
 {
     if(0 == loop)
     {
         uint8_t* para_str = cli_get_parameter(0);
-        uint32_t start_time = time_get_ms();
-        timeout_time = start_time + TIMEOUT_TIME_MS;
-        if(timeout_time > MAX_SAFE_COUNT)
-        {
-            // an end time of 0xffffffff would not work as all values are always < 0xffffffff
-            uint32_t remainder = 100 - (MAX_SAFE_COUNT - start_time);
-            timeout_time = 2 + remainder;
-            wait_for_wrap_around = true;
-        }
-        else if(timeout_time < start_time)
-        {
-            // wrap around
-            wait_for_wrap_around = true;
-        }
-        else
-        {
-            wait_for_wrap_around = false;
-        }
+        start_timeout(&to);
         checked_swdv1 = false;
         checked_swdv2 = false;
         step = 0;
@@ -161,27 +143,13 @@ bool cmd_swd_test(uint32_t loop)
     else
     {
         // check timeout
-        uint32_t cur_time = time_get_ms();
-        if(true == wait_for_wrap_around)
+        if(true == timeout_expired(&to))
         {
-            if(10 > cur_time)
-            {
-                // wrap around happened
-                wait_for_wrap_around = false;
-            }
-            // else continue waiting
-        }
-        else
-        {
-            if(cur_time > timeout_time)
-            {
-                // Timeout !!!
-                cur_walk.result = RESULT_OK;
-                cur_walk.is_done = true;
-                debug_line("ERROR: TIMEOUT !!!!");
-                return true;
-            }
-            // else not a timeout, yet.
+            // Timeout !!!
+            cur_walk.result = RESULT_OK;
+            cur_walk.is_done = true;
+            debug_line("ERROR: detect loop TIMEOUT !!!!");
+            return true;
         }
 
         if(false == cur_walk.is_done)
