@@ -13,11 +13,10 @@
  *
  */
 
-#ifndef SOURCE_CFG_TARGET_WALK_WALKS_H_
-#define SOURCE_CFG_TARGET_WALK_WALKS_H_
+#ifndef SOURCE_TARGET_SCAN_H_
+#define SOURCE_TARGET_SCAN_H_
 
-#define TARGET_ENUM_WALKS        WALK_SCAN,
-#define TARGET_LOOKUP_HANDLERS   handle_scan,
+#include "probe_api/common.h"
+#include "probe_api/actions.h"
 
-
-#endif /* SOURCE_CFG_TARGET_WALK_WALKS_H_ */
+#endif /* SOURCE_TARGET_WALK_H_ */

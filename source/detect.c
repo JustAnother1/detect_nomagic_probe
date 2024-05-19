@@ -15,16 +15,13 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
-// #include "target_actions.h"
-// #include "target_info.h"
-#include "result.h"
-#include "debug_log.h"
-#include "swd.h"
-#include "walk.h"
-#include "cli.h"
-#include "time.h"
-#include "common.h"
-#include "device_specific.h"
+#include "probe_api/result.h"
+#include "probe_api/debug_log.h"
+#include "probe_api/swd.h"
+#include "probe_api/cli.h"
+#include "probe_api/time.h"
+#include "probe_api/common.h"
+#include "target.h"
 
 #define TIMEOUT_TIME_MS       300
 
@@ -78,14 +75,21 @@ static connect_param_typ connect_parameter[] = {
 
 static bool test_swd_v1(void);
 static bool test_swd_v2(void);
+static Result start_scan(void);
+static Result start_connect(bool isSWDv2, uint32_t core_id, uint32_t APsel);
 
-static walk_data_typ cur_walk;
 static bool checked_swdv1;
 static bool checked_swdv2;
 static bool single_location;
 static uint32_t step;
 static uint32_t location;
 static timeout_typ to;
+
+static bool swd_isSWDv2;
+static uint32_t swd_core_id;
+static uint32_t swd_APsel;
+
+static action_data_typ* cur_action;
 
 
 bool cmd_target_info(uint32_t loop)
@@ -101,6 +105,21 @@ bool cmd_target_info(uint32_t loop)
         return common_cmd_target_info(loop -1);
     }
     return false; // true == Done; false = call me again
+}
+
+bool target_is_SWDv2(void)
+{
+    return swd_isSWDv2;
+}
+uint32_t target_get_SWD_core_id(uint32_t core_num) // only required for SWDv2 (TARGETSEL)
+{
+    (void) core_num; // TODO multi core
+    return swd_core_id;
+}
+uint32_t target_get_SWD_APSel(uint32_t core_num)
+{
+    (void) core_num; // TODO multi core
+    return swd_APsel;
 }
 
 // get called from CLI.
@@ -119,8 +138,7 @@ bool cmd_swd_test(uint32_t loop)
         step = 0;
         location = 0;
         single_location = false;
-        cur_walk.result = RESULT_OK;
-        cur_walk.is_done = true;
+        cur_action = NULL;
         if('1' == *para_str)
         {
             // SWDv1 only
@@ -137,7 +155,7 @@ bool cmd_swd_test(uint32_t loop)
                 single_location = true;
             }
         }
-        return false;
+        return false; // not done yet
     }
     else
     {
@@ -145,15 +163,16 @@ bool cmd_swd_test(uint32_t loop)
         if(true == timeout_expired(&to))
         {
             // Timeout !!!
-            cur_walk.result = RESULT_OK;
-            cur_walk.is_done = true;
             debug_line("ERROR: detect loop TIMEOUT !!!!");
             return true;
         }
 
-        if(false == cur_walk.is_done)
+        if(NULL != cur_action)
         {
-            return false;
+            if(false == cur_action->is_done)
+            {
+                return false; // not done yet
+            }
         }
         if(false == checked_swdv1)
         {
@@ -167,7 +186,7 @@ bool cmd_swd_test(uint32_t loop)
         }
         else
         {
-            return true;
+            return true; // we are done now
         }
     }
 }
@@ -175,38 +194,48 @@ bool cmd_swd_test(uint32_t loop)
 static bool test_swd_v1(void)
 {
     // open SWD connection
-    if(RESULT_OK != cur_walk.result)
+    if(RESULT_OK != cur_action->result)
     {
         debug_line("Failed to connect!");
         step = 0;
         checked_swdv1 = true;
+        cur_action = NULL;
         return false;
     }
     if(0 == step)
     {
+        Result res;
         debug_line(" ");
         debug_line("trying to connect using SWDv1 ....");
-        walk_init();
         debug_line("resetting error condition!");
         swd_reset_error_condition();
-        cur_walk.type = WALK_CONNECT;
-        cur_walk.par_b_0 = false; // multi = SWDv2 -> false
-        cur_walk.par_i_0 = 0;
-        cur_walk.par_i_1 = 0;
-        cur_walk.phase = 0;
-        cur_walk.result = RESULT_OK;
-        cur_walk.is_done = false;
-        step = 1;
-        return false;
+        res = start_connect(false, 0, 0);
+        if(RESULT_OK != res)
+        {
+            debug_line("ERROR: failed to connect using SWDv1 !");
+            return true;
+        }
+        else
+        {
+            step = 1;
+            return false;
+        }
     }
     else if(1 == step)
     {
-        if(RESULT_OK == cur_walk.result)
+        if(RESULT_OK == cur_action->result)
         {
-            cur_walk.type = WALK_SCAN;
-            cur_walk.phase = 0;
-            cur_walk.is_done = false;
-            step = 2;
+            Result res;
+            res = start_scan();
+            if(RESULT_OK != res)
+            {
+                debug_line("ERROR: failed to scan target using SWDv1 !");
+                return true;
+            }
+            else
+            {
+                step = 2;
+            }
         }
         else
         {
@@ -221,6 +250,7 @@ static bool test_swd_v1(void)
         debug_line("Done with SWDv1...");
         checked_swdv1 = true;
         step = 0;
+        cur_action = NULL;
         return false;
     }
 }
@@ -232,19 +262,24 @@ static bool test_swd_v2(void)
     {
         if(NUM_CONNECT_LOCATIONS > location)
         {
+            Result res;
             debug_line(" ");
             debug_line("trying to connect on location %ld/%d ....", location + 1, NUM_CONNECT_LOCATIONS);
-            walk_init();
             debug_line("resetting error condition!");
             swd_reset_error_condition();
-            cur_walk.type = WALK_CONNECT;
-            cur_walk.par_b_0 = true; // multi = SWDv2 -> true
-            cur_walk.par_i_0 = connect_parameter[location].target_id;
-            cur_walk.par_i_1 = connect_parameter[location].apsel;
-            cur_walk.phase = 0;
-            cur_walk.result = RESULT_OK;
-            cur_walk.is_done = false;
-            step++;
+            res = start_connect(true,
+                                connect_parameter[location].target_id,
+                                connect_parameter[location].apsel);
+            if(RESULT_OK != res)
+            {
+                debug_line("ERROR: failed to connect using SWDv2 !");
+                return true;
+            }
+            else
+            {
+                step = 1;
+                return false;
+            }
         }
         else
         {
@@ -256,16 +291,23 @@ static bool test_swd_v2(void)
     }
     else if(1 == step)
     {
-        if(RESULT_OK == cur_walk.result)
+        if(RESULT_OK == cur_action->result)
         {
-            cur_walk.type = WALK_SCAN;
-            cur_walk.phase = 0;
-            cur_walk.is_done = false;
-            step++;
+            Result res;
+            res = start_scan();
+            if(RESULT_OK != res)
+            {
+                debug_line("ERROR: failed to scan target using SWDv1 !");
+                return true;
+            }
+            else
+            {
+                step = 2;
+            }
         }
         else
         {
-            debug_line("ERROR: connect failed (%ld) !", cur_walk.result);
+            debug_line("ERROR: connect failed (%ld) !", cur_action->result);
             location++;
             step = 0;
             if(true == single_location)
@@ -277,7 +319,7 @@ static bool test_swd_v2(void)
     }
     else // if(2 == step)
     {
-        if(RESULT_OK == cur_walk.result)
+        if(RESULT_OK == cur_action->result)
         {
             location++;
             step = 0;
@@ -289,7 +331,7 @@ static bool test_swd_v2(void)
         }
         else
         {
-            debug_line("ERROR: scan failed (%ld) !", cur_walk.result);
+            debug_line("ERROR: scan failed (%ld) !", cur_action->result);
             location++;
             step = 0;
             if(true == single_location)
@@ -301,65 +343,54 @@ static bool test_swd_v2(void)
     }
 }
 
-// TODO use CLI parameters to set these ?
-#define SWD_ID_CORE_0    0x01002927
-#define SWD_ID_CORE_1    0x11002927
-#define SWD_ID_RESCUE_DP 0xf1002927
-#define SWD_AP_SEL       0
-
-Result handle_target_connect(action_data_typ* action, bool first_call)
+static Result start_scan(void)
 {
-    if(true == first_call)
+    Result res;
+    action_data_typ* const action =  book_action_slot();
+    if(NULL == action)
     {
-        debug_line("connecting SWDv2 (0x%08x)", SWD_ID_CORE_0);
-        action->walk->type = WALK_CONNECT;
-        action->walk->par_b_0 = true; // multi = SWDv2 -> true
-        action->walk->par_i_0 = SWD_ID_CORE_0;  // TODO multi core
-        action->walk->par_i_1 = SWD_AP_SEL;
-        action->walk->phase = 0;
-        action->walk->result = RESULT_OK;
-        action->walk->is_done = false;
-        action->phase = 1;
-        return ERR_NOT_COMPLETED;
+        debug_line("ERROR: could not connect to target ! Action queue full!");
+        return ERR_QUEUE_FULL_TRY_AGAIN;
     }
-    if(1 == action->phase)
+    action->action = SWD_SCAN;
+    action->is_done = false;
+    action->result = RESULT_OK;
+    res = add_target_action(action);
+    if(RESULT_OK != res)
     {
-        if(RESULT_OK == action->walk->result)
-        {
-            debug_line("connected!");
-        }
-        else
-        {
-            debug_line("ERROR: failed to connect!");
-        }
-        target_set_status(CONNECTED_HALTED);  // TODO enable connect without halt
+        debug_line("ERROR: could not execute gdb:'G'! adding action failed(%ld)!", res);
     }
-    return action->walk->result;
+    else
+    {
+        cur_action = action;
+    }
+    return res;
 }
 
-Result handle_target_close_connection(action_data_typ* action, bool first_call)
+static Result start_connect(bool isSWDv2, uint32_t core_id, uint32_t APsel)
 {
-    if(true == first_call)
+    Result res;
+    action_data_typ* const action =  book_action_slot();
+    if(NULL == action)
     {
-        debug_line("closing SWD connection !");
-        action->walk->type = WALK_DISCONNECT;
-        action->walk->phase = 0;
-        action->walk->result = RESULT_OK;
-        action->walk->is_done = false;
-        action->phase = 1;
-        return ERR_NOT_COMPLETED;
+        debug_line("ERROR: could not connect to target ! Action queue full!");
+        return ERR_QUEUE_FULL_TRY_AGAIN;
     }
-    else // if(1 == step)
+    swd_isSWDv2 = isSWDv2;
+    swd_core_id = core_id;
+    swd_APsel = APsel;
+    action->action = SWD_CONNECT;
+    action->is_done = false;
+    action->result = RESULT_OK;
+    res = add_target_action(action);
+    if(RESULT_OK != res)
     {
-        if(RESULT_OK == action->walk->result)
-        {
-            debug_line("Disconnected!");
-        }
-        else
-        {
-            debug_line("ERROR: failed to disconnect(%ld)!", action->walk->result);
-        }
-        target_set_status(NOT_CONNECTED);
+        debug_line("ERROR: could not execute gdb:'G'! adding action failed(%ld)!", res);
     }
-    return action->walk->result;
+    else
+    {
+        cur_action = action;
+    }
+    return res;
 }
+

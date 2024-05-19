@@ -58,7 +58,7 @@ HAS_GDB_SERVER = no
 include nomagic_probe/nomagic_probe.mk
 
 SRC += $(SRC_FOLDER)detect.c
-SRC += $(SRC_FOLDER)target_walk.c
+SRC += $(SRC_FOLDER)target_scan.c
 
 INCDIRS +=$(NOMAGIC_FOLDER)src/probe_api/
 INCDIRS +=$(SRC_FOLDER)

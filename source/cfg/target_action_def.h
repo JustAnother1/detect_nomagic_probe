@@ -13,12 +13,12 @@
  *
  */
 
-#ifndef SOURCE_TARGET_WALK_H_
-#define SOURCE_TARGET_WALK_H_
-
-#include "walk.h"
+#ifndef SOURCE_CFG_TARGET_WALK_WALKS_H_
+#define SOURCE_CFG_TARGET_WALK_WALKS_H_
 
 
-void handle_scan(walk_data_typ* data);
+#define TARGET_SPECIFIC_ACTIONS_ENUM        SWD_SCAN,
+#define TARGET_SPECIFIC_ACTION_HANDLERS   handle_scan,
 
-#endif /* SOURCE_TARGET_WALK_H_ */
+
+#endif /* SOURCE_CFG_TARGET_WALK_WALKS_H_ */

@@ -17,11 +17,12 @@
 #define SOURCE_CFG_TARGET_CLI_COMMANDS_H_
 
 #include <stdint.h>
-#include "target_actions.h"
 
+bool cmd_target_info(uint32_t loop);
 bool cmd_swd_test(uint32_t loop);
 
 #define TARGET_CLI_COMMANDS \
 {"swd_test",    "explore the SWD interface", cmd_swd_test}, \
+
 
 #endif /* SOURCE_CFG_TARGET_CLI_COMMANDS_H_ */
