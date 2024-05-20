@@ -23,7 +23,7 @@
 #include "probe_api/common.h"
 #include "target.h"
 
-#define TIMEOUT_TIME_MS       300
+#define TIMEOUT_TIME_MS       10000
 
 
 // RP2040:
@@ -194,21 +194,22 @@ bool cmd_swd_test(uint32_t loop)
 static bool test_swd_v1(void)
 {
     // open SWD connection
-    if(RESULT_OK != cur_action->result)
+    if(NULL != cur_action)
     {
-        debug_line("Failed to connect!");
-        step = 0;
-        checked_swdv1 = true;
-        cur_action = NULL;
-        return false;
+        if(RESULT_OK != cur_action->result)
+        {
+            debug_line("SWDv1: Failed to connect!");
+            step = 0;
+            checked_swdv1 = true;
+            cur_action = NULL;
+            return false;
+        }
     }
     if(0 == step)
     {
         Result res;
         debug_line(" ");
         debug_line("trying to connect using SWDv1 ....");
-        debug_line("resetting error condition!");
-        swd_reset_error_condition();
         res = start_connect(false, 0, 0);
         if(RESULT_OK != res)
         {
@@ -247,7 +248,7 @@ static bool test_swd_v1(void)
     }
     else // if(2 == step)
     {
-        debug_line("Done with SWDv1...");
+        debug_line("Done with SWDv1 !");
         checked_swdv1 = true;
         step = 0;
         cur_action = NULL;
@@ -264,9 +265,7 @@ static bool test_swd_v2(void)
         {
             Result res;
             debug_line(" ");
-            debug_line("trying to connect on location %ld/%d ....", location + 1, NUM_CONNECT_LOCATIONS);
-            debug_line("resetting error condition!");
-            swd_reset_error_condition();
+            debug_line("SWDv2: trying to connect on location %ld/%d ....", location + 1, NUM_CONNECT_LOCATIONS);
             res = start_connect(true,
                                 connect_parameter[location].target_id,
                                 connect_parameter[location].apsel);
