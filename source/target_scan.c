@@ -24,41 +24,43 @@
 
 static uint32_t ROM_Table_Adress;
 
-static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_data_typ * const action);
+static Result check_AP(uint32_t idr, bool first_call, action_data_typ * const action);
 
 
 Result handle_scan(action_data_typ * const action, bool first_call)
 {
     if(true == first_call)
     {
-        action->phase = 1;
+        *(action->cur_phase) = 1;
         action->intern[INTERN_AP_ADDRESS] = 0;
     }
 
-    if(1 == action->phase)
+    if(1 == *(action->cur_phase))
     {
         debug_line("testing AP %ld", action->intern[INTERN_AP_ADDRESS]);
         swd_protocol_set_AP_sel(action->intern[INTERN_AP_ADDRESS]);
         return do_read_ap_reg(action, AP_BANK_IDR, AP_REGISTER_IDR);
     }
-    else if(2 == action->phase)
+    else if(2 == *(action->cur_phase))
     {
-        return do_get_Result_OK(action);
+        return do_get_Result_data(action);
     }
-    else if((3 == action->phase) || (4 == action->phase))
+    else if((3 == *(action->cur_phase)) || (4 == *(action->cur_phase)))
     {
         if(RESULT_OK == action->result)
         {
             // found an AP
             Result tres;
-            if(3 == action->phase)
+            if(3 == *(action->cur_phase))
             {
                 if(0 != action->read_0)
                 {
                     debug_line("Found AP !");
                     action->intern[INTERN_IDR] = action->read_0;
-                    tres = check_AP(action->intern[INTERN_IDR], true, &(action->sub_phase), action);
-                    action->phase = 4;
+                    action->cur_phase = &(action->sub_phase);
+                    tres = check_AP(action->intern[INTERN_IDR], true,action);
+                    action->cur_phase = &(action->main_phase);
+                    *(action->cur_phase) = 4;
                 }
                 else
                 {
@@ -68,19 +70,21 @@ Result handle_scan(action_data_typ * const action, bool first_call)
                     debug_line("Done!");
                     action->result = RESULT_OK;
                     action->is_done = true;
-                    tres = RESULT_OK;
+                    return RESULT_OK;
                 }
             }
             else
             {
-                tres = check_AP(action->intern[INTERN_IDR], false, &(action->sub_phase), action);
+                action->cur_phase = &(action->sub_phase);
+                tres = check_AP(action->intern[INTERN_IDR], false, action);
+                action->cur_phase = &(action->main_phase);
             }
             if(RESULT_OK == tres)
             {
                 action->intern[INTERN_AP_ADDRESS]++;
                 if(256 > action->intern[INTERN_AP_ADDRESS])
                 {
-                    action->phase = 1;
+                    *(action->cur_phase) = 1;
                     return ERR_NOT_COMPLETED;
                 }
                 else
@@ -114,7 +118,7 @@ Result handle_scan(action_data_typ * const action, bool first_call)
     return ERR_WRONG_STATE;
 }
 
-static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_data_typ * const action)
+static Result check_AP(uint32_t idr, bool first_call, action_data_typ * const action)
 {
     uint32_t class = (idr & (0xf << 13))>> 13;
     if(8 == class)
@@ -128,21 +132,21 @@ static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_d
             debug_line("AP: IDR: class :   %ld", class );
             debug_line("AP: IDR: variant:  %ld", (idr & (0xf<<4))>>4 );
             debug_line("AP: IDR: type:     %ld", (idr & 0xf) );
-            *phase = 1;
+            *(action->cur_phase) = 1;
             return ERR_NOT_COMPLETED;
         }
 
-        else if(1 == *phase)
+        else if(1 == *(action->cur_phase))
         {
             return do_read_ap_reg(action, AP_BANK_CSW, AP_REGISTER_CSW);
         }
 
-        else if(2 == *phase)
+        else if(2 == *(action->cur_phase))
         {
-            return do_get_Result_OK(action);
+            return do_get_Result_data(action);
         }
 
-        else if(3 == *phase)
+        else if(3 == *(action->cur_phase))
         {
             if(RESULT_OK == action->result)
             {
@@ -164,36 +168,23 @@ static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_d
             }
         }
 
-        else if(4 == *phase)
+        else if(4 == *(action->cur_phase))
         {
-            return do_get_Result_OK(action);
+            return do_read_ap_reg(action, AP_BANK_BASE, AP_REGISTER_BASE);
         }
 
-        else if(5 == *phase)
+        else if(5 == *(action->cur_phase))
         {
-            if(RESULT_OK == action->result)
-            {
-                return do_read_ap_reg(action, AP_BANK_BASE, AP_REGISTER_BASE);
-            }
-            else
-            {
-                // step failed
-                debug_line("Failed to write CSW (%ld) !", action->result);
-                return action->result;
-            }
+            return do_get_Result_data(action);
         }
 
-        else if(6 == *phase)
-        {
-            return do_get_Result_OK(action);
-        }
-
-        else if(7 == *phase)
+        else if(6 == *(action->cur_phase))
         {
             if(RESULT_OK == action->result)
             {
                 debug_line("AP: BASE : 0x%08lx", action->read_0);
-                ROM_Table_Adress = action->read_0 & 0xfffffffc; // lowest two bits of address must be  0. (4 Byte = 32 bit alignment)
+                // lowest two bits of address must be  0. (4 Byte = 32 bit alignment)
+                ROM_Table_Adress = action->read_0 & 0xfffffffc;
                 debug_line("AP: ROM Table starts at 0x%08lx", ROM_Table_Adress);
                 return do_read_ap_reg(action, AP_BANK_CFG, AP_REGISTER_CFG);
             }
@@ -205,12 +196,12 @@ static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_d
             }
         }
 
-        else if(8 == *phase)
+        else if(7 == *(action->cur_phase))
         {
-            return do_get_Result_OK(action);
+            return do_get_Result_data(action);
         }
 
-        else if(9 == *phase)
+        else if(8 == *(action->cur_phase))
         {
             if(RESULT_OK == action->result)
             {
@@ -246,17 +237,17 @@ static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_d
             }
         }
 
-        else if(10 == *phase)
+        else if(9 == *(action->cur_phase))
         {
-            return do_get_Result_OK(action);
+            return do_get_Result_data(action);
         }
 
-        else if(11 == *phase)
+        else if(10 == *(action->cur_phase))
         {
             if(RESULT_OK == action->result)
             {
                 debug_line("AP: CFG1 : 0x%08lx", action->read_0);
-                action->intern[INTERN_ROM_OFFSET] = 0;
+                action->intern[INTERN_ROM_OFFSET] = 1;
                 return do_read_ap(action, ROM_Table_Adress);
             }
             else
@@ -267,38 +258,31 @@ static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_d
             }
         }
 
-        else if(12 == *phase)
+        else if(11 == *(action->cur_phase))
         {
-            return do_get_Result_OK(action);
+            return do_get_Result_data(action);
         }
 
-        else if(13 == *phase)
+        else if(12 == *(action->cur_phase))
         {
             if(RESULT_OK == action->result)
             {
                 if(0 == action->read_0)
                 {
                     // end of ROM Table found
-                    *phase = 8;
+                    *(action->cur_phase) = 15;
                     return ERR_NOT_COMPLETED;
                 }
                 if(1 == (action->read_0 &1))
                 {
                     // valid entry
                     int32_t address = (int32_t)(action->read_0 & 0xfffff000);  // address offset is signed
-                    debug_line("ROM Table : found 0x%08lx", address);
-                    debug_line("ROM Table : address 0x%08lx", (int32_t)ROM_Table_Adress + address);
+                    debug_line("ROM Table[0] : found 0x%08lx", address);
+                    debug_line("ROM Table[0] : address 0x%08lx", (int32_t)ROM_Table_Adress + address);
                 }
                 else
                 {
-                    debug_line("ROM Table : ignoring 0x%08lx", action->read_0);
-                }
-                action->intern[INTERN_AP_ADDRESS]++;
-                if(1024 < action->intern[INTERN_ROM_OFFSET])
-                {
-                    // max size
-                    *phase = 15;
-                    return ERR_NOT_COMPLETED;
+                    debug_line("ROM Table[0] : ignoring 0x%08lx", action->read_0);
                 }
 
                 // read next entry
@@ -343,20 +327,45 @@ static Result check_AP(uint32_t idr, bool first_call, uint32_t * phase, action_d
             }
         }
 
-        else if(14 == *phase)
+        else if(13 == *(action->cur_phase))
         {
-            return do_get_Result_OK(action);
+            return do_get_Result_data(action);
         }
 
-        else if(15 == *phase)
+        else if(14 == *(action->cur_phase))
+        {
+            if(0 == action->read_0)
+            {
+                // end of ROM Table found
+                *(action->cur_phase) = 15;
+                return ERR_NOT_COMPLETED;
+            }
+            if(1 == (action->read_0 &1))
+            {
+                // valid entry
+                int32_t address = (int32_t)(action->read_0 & 0xfffff000);  // address offset is signed
+                debug_line("ROM Table[%ld] : found 0x%08lx", action->intern[INTERN_ROM_OFFSET], address);
+                debug_line("ROM Table[%ld] : address 0x%08lx", action->intern[INTERN_ROM_OFFSET], (int32_t)ROM_Table_Adress + address);
+            }
+            else
+            {
+                debug_line("ROM Table[%ld] : ignoring 0x%08lx", action->intern[INTERN_ROM_OFFSET], action->read_0);
+            }
+            *(action->cur_phase) = 12;
+            action->intern[INTERN_ROM_OFFSET] = action->intern[INTERN_ROM_OFFSET] + 1;
+            return do_read_ap(action, ROM_Table_Adress + (action->intern[INTERN_ROM_OFFSET] * 4));
+        }
+
+        else if(15 == *(action->cur_phase))
         {
             debug_line("Done with this AP!");
             return RESULT_OK; // done with this AP
         }
+
         else
         {
             // phase has invalid value
-            debug_line("check ap: invalid phase (%ld)!", *phase);
+            debug_line("check ap: invalid phase (%ld)!", *(action->cur_phase));
             return ERR_WRONG_STATE;
         }
     }

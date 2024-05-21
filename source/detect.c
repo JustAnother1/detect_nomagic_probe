@@ -348,7 +348,7 @@ static Result start_scan(void)
     action_data_typ* const action =  book_action_slot();
     if(NULL == action)
     {
-        debug_line("ERROR: could not connect to target ! Action queue full!");
+        debug_line("ERROR: could not start scan ! Action queue full!");
         return ERR_QUEUE_FULL_TRY_AGAIN;
     }
     action->action = SWD_SCAN;
@@ -357,7 +357,7 @@ static Result start_scan(void)
     res = add_target_action(action);
     if(RESULT_OK != res)
     {
-        debug_line("ERROR: could not execute gdb:'G'! adding action failed(%ld)!", res);
+        debug_line("ERROR: could not execute start scan ! adding action failed(%ld)!", res);
     }
     else
     {
@@ -384,7 +384,7 @@ static Result start_connect(bool isSWDv2, uint32_t core_id, uint32_t APsel)
     res = add_target_action(action);
     if(RESULT_OK != res)
     {
-        debug_line("ERROR: could not execute gdb:'G'! adding action failed(%ld)!", res);
+        debug_line("ERROR: could not execute connect to target ! adding action failed(%ld)!", res);
     }
     else
     {
