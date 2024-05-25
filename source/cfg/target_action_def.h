@@ -19,6 +19,7 @@
 
 #define TARGET_SPECIFIC_ACTIONS_ENUM        SWD_SCAN,
 #define TARGET_SPECIFIC_ACTION_HANDLERS   handle_scan,
+#define TARGET_SPECIFIC_ACTION_NAMES      "scan",
 
 
 #endif /* SOURCE_CFG_TARGET_WALK_WALKS_H_ */
