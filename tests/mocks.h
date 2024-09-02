@@ -13,13 +13,11 @@
  *
  */
 
-#ifndef SOURCE_CFG_TARGET_WALK_WALKS_H_
-#define SOURCE_CFG_TARGET_WALK_WALKS_H_
+#ifndef TESTS_MOCKS_H_
+#define TESTS_MOCKS_H_
 
+void mocks_init(void);
+char* get_send_packet(int num);
+int get_num_send_packets(void);
 
-#define TARGET_SPECIFIC_ACTIONS_ENUM        SWD_SCAN,
-#define TARGET_SPECIFIC_ACTION_HANDLERS   handle_scan,
-#define TARGET_SPECIFIC_ACTION_NAMES      "scan",
-
-
-#endif /* SOURCE_CFG_TARGET_WALK_WALKS_H_ */
+#endif /* TESTS_MOCKS_H_ */

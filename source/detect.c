@@ -85,9 +85,9 @@ static uint32_t step;
 static uint32_t location;
 static timeout_typ to;
 
-static bool swd_isSWDv2;
-static uint32_t swd_core_id;
-static uint32_t swd_APsel;
+static bool swd_isSWDv2 = false;
+static uint32_t swd_core_id = 0;
+static uint32_t swd_APsel = 0;
 
 static action_data_typ* cur_action;
 
