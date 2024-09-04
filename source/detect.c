@@ -71,6 +71,7 @@ static connect_param_typ connect_parameter[] = {
         {0xe1002927,      0 }, // RP2040 altered id
         {0xf1002927,      0 }, // RP2040 rescue data port
 };
+
 #define NUM_CONNECT_LOCATIONS (sizeof(connect_parameter)/sizeof(connect_param_typ))
 
 static bool test_swd_v1(void);
@@ -111,14 +112,16 @@ bool target_is_SWDv2(void)
 {
     return swd_isSWDv2;
 }
+
 uint32_t target_get_SWD_core_id(uint32_t core_num) // only required for SWDv2 (TARGETSEL)
 {
-    (void) core_num; // TODO multi core
+    (void) core_num;
     return swd_core_id;
 }
+
 uint32_t target_get_SWD_APSel(uint32_t core_num)
 {
-    (void) core_num; // TODO multi core
+    (void) core_num;
     return swd_APsel;
 }
 

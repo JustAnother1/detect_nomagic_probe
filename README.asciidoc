@@ -9,13 +9,12 @@ This firmware uses https://github.com/JustAnother1/nomagic_probe[nomagic probe].
 == features
 
  - USB CDCD(serial port) gdb server
- - USB MSCD(thumb drive) for configuration files.
  - support for SWD according to ARM ADIv5.0, ARM ADIv5.1, ARM ADIv5.2, ARM ADIv6.0.
 
 
 == documentation
 
-link:nomagic_probe/doc/overview.asciidoc[overview]
+link:nomagic_probe/doc/overview.asciidoc[overview] of available documentation.
 
 Additional documentation can be created
 
@@ -33,7 +32,7 @@ for this to work you (obviously) need to have make installed.
 Depending on the target you are building for you might need to have additionaltools installed:
 
 - To build for ARM Cortex-M Targets you need https://launchpad.net/gcc-arm-embedded[GCC ARM Embedded]
-- to flash and program you need https://openocd.org/[OpenOCD]
+- to flash and program you need https://openocd.org/[OpenOCD] or
 - to create an *.uf2 file you need https://github.com/JustAnother1/elf2uf2/releases[elf2uf2]
 - for automatic generated documentation you need http://www.stack.nl/~dimitri/doxygen/[Doxygen]
 
