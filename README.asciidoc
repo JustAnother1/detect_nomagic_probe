@@ -22,23 +22,149 @@ Additional documentation can be created
 
 the created documentation is then located in the build/doxygen/ folder.
 
-== building and starting
+== building
 
 The firmware can be build using make. The generated Files will be placed in the bin folder. For details try
 
 +make help+
 
 for this to work you (obviously) need to have make installed.
-Depending on the target you are building for you might need to have additionaltools installed:
+You might need to have additionaltools installed:
 
 - To build for ARM Cortex-M Targets you need https://launchpad.net/gcc-arm-embedded[GCC ARM Embedded]
 - to flash and program you need https://openocd.org/[OpenOCD] or
 - to create an *.uf2 file you need https://github.com/JustAnother1/elf2uf2/releases[elf2uf2]
 - for automatic generated documentation you need http://www.stack.nl/~dimitri/doxygen/[Doxygen]
 
-== pinout
+== running
 
-=== pico
+Wenn connecting a pico running this firmware to your pc a new serial interface will show up. 
+You can use your favorite terminal programm to open the interface. 
+You can set any boud rate you like as the firmware will ignore the setting.
+
+You need to connect 
+  - GPIO 2 (pin 4 on pico) carrying the SWCLK signal and
+  - GPIO 3 (pin 5 on pico) carrying the SWDIO signal as well as 
+  - GND
+
+to the MCU you want to analyse. Also see chapter <<pico pinout>>.
+
+If you type +help+ and hit enter the firmware will respond with a list of all supported commands. 
+The most interesting one will be +swd_test+
+
+The "swd_test" command trys different ways of connectiong to a MCU over SWD. 
+Most locations will fail, that is expected. 
+But once it found a working set of options the connected chip will be analyzed.
+
+For RP2040 you will see this:
+----
+$ swd_test
+
+ 
+trying to connect using SWDv1 ....
+resetting error condition!
+INFO: request reading ID Register!
+ERROR: read ap/dp: 0, addr: 0, ack: 7
+ERROR: SWD ACK was 7 (target not connected?) !
+ERROR: Failed to send packet! Result: -7
+swd: error -7 on order connect
+target: step 3 failed (0xfffffff9)
+target: error -9 on action connect.3.0
+SWDv1: Failed to connect!
+ 
+SWDv2: trying to connect on location 1/16 (target id: 0x01002927)....
+resetting error condition!
+INFO: request reading ID Register!
+INFO: Read ID Register!
+connected!
+testing AP 0
+Found AP !
+APv1:
+AP: IDR: Revision: 0
+AP: IDR: Jep 106 : 4 x 0x7f + 0x3b
+AP: IDR: class :   8
+AP: IDR: variant:  3
+AP: IDR: type:     1
+AP: CSW  : 0x03000052
+AP: BASE : 0xe00ff003
+AP: ROM Table starts at 0xe00ff000
+AP: CFG  : 0x00000000
+long address supported = 0
+large data supported = 0
+AP: CFG1 : 0x00000000
+do_read_ap(0xe00ff000)
+System Control Space (SCS):
+ROM Table[0] : found 0xfff0f003
+ROM Table[0] : address 0xe000e000
+do_read_ap(0xe00ff004)
+Data watchpoint unit (DWT):
+ROM Table[1] : found 0xfff02000
+ROM Table[1] : address 0xe0001000
+do_read_ap(0xe00ff008)
+Breakpoint unit (BPU):
+ROM Table[2] : found 0xfff03000
+ROM Table[2] : address 0xe0002000
+do_read_ap(0xe00ff00c)
+do_read_ap(0xe0001000)
+Device has 2 watchpoints.
+do_read_ap(0xe0002000)
+Device has 4 breakpoints.
+Done with this AP!
+testing AP 1
+AP 1: IDR = 0
+Done!
+ 
+SWDv2: trying to connect on location 2/16 (target id: 0x11002927)....
+resetting error condition!
+INFO: request reading ID Register!
+INFO: Read ID Register!
+connected!
+testing AP 0
+Found AP !
+APv1:
+AP: IDR: Revision: 0
+AP: IDR: Jep 106 : 4 x 0x7f + 0x3b
+AP: IDR: class :   8
+AP: IDR: variant:  3
+AP: IDR: type:     1
+AP: CSW  : 0x03000052
+AP: BASE : 0xe00ff003
+AP: ROM Table starts at 0xe00ff000
+AP: CFG  : 0x00000000
+long address supported = 0
+large data supported = 0
+AP: CFG1 : 0x00000000
+do_read_ap(0xe00ff000)
+System Control Space (SCS):
+ROM Table[0] : found 0xfff0f003
+ROM Table[0] : address 0xe000e000
+do_read_ap(0xe00ff004)
+Data watchpoint unit (DWT):
+ROM Table[1] : found 0xfff02000
+ROM Table[1] : address 0xe0001000
+do_read_ap(0xe00ff008)
+Breakpoint unit (BPU):
+ROM Table[2] : found 0xfff03000
+ROM Table[2] : address 0xe0002000
+do_read_ap(0xe00ff00c)
+do_read_ap(0xe0001000)
+Device has 2 watchpoints.
+do_read_ap(0xe0002000)
+Device has 4 breakpoints.
+Done with this AP!
+testing AP 1
+AP 1: IDR = 0
+Done!
+
+----
+
+followd by some more unsucessfull tries.
+
+We fail to connect using SWDv1. But then succeed to connect to both cores using SWDv2.
+
+
+== pico pinout
+
 The pico has 40 pins (1..40) Numbered counter clock wise starting at the USB connector.
 
 ----

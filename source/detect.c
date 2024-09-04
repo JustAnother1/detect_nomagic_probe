@@ -268,7 +268,8 @@ static bool test_swd_v2(void)
         {
             Result res;
             debug_line(" ");
-            debug_line("SWDv2: trying to connect on location %ld/%d ....", location + 1, NUM_CONNECT_LOCATIONS);
+            debug_line("SWDv2: trying to connect on location %ld/%d (target id: 0x%08lx)....",
+            		location + 1, NUM_CONNECT_LOCATIONS, connect_parameter[location].target_id);
             res = start_connect(true,
                                 connect_parameter[location].target_id,
                                 connect_parameter[location].apsel);
