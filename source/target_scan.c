@@ -23,6 +23,9 @@
 #define INTERN_ROM_OFFSET     3
 
 static uint32_t ROM_Table_Adress;
+static uint32_t SCS_Adress;
+static uint32_t DWT_Adress;
+static uint32_t BPU_Adress;
 
 static Result check_AP(uint32_t idr, bool first_call, action_data_typ * const action);
 
@@ -273,15 +276,20 @@ static Result check_AP(uint32_t idr, bool first_call, action_data_typ * const ac
                     *(action->cur_phase) = 15;
                     return ERR_NOT_COMPLETED;
                 }
+
                 if(1 == (action->read_0 &1))
                 {
                     // valid entry
                     int32_t address = (int32_t)(action->read_0 & 0xfffff000);  // address offset is signed
-                    debug_line("ROM Table[0] : found 0x%08lx", address);
+					SCS_Adress = (uint32_t)address;
+					debug_line("System Control Space (SCS):");
+                    debug_line("ROM Table[0] : found 0x%08lx", action->read_0);
                     debug_line("ROM Table[0] : address 0x%08lx", (int32_t)ROM_Table_Adress + address);
                 }
                 else
                 {
+					SCS_Adress = 0;
+					debug_line("System Control Space (SCS):");
                     debug_line("ROM Table[0] : ignoring 0x%08lx", action->read_0);
                 }
 
@@ -344,11 +352,41 @@ static Result check_AP(uint32_t idr, bool first_call, action_data_typ * const ac
             {
                 // valid entry
                 int32_t address = (int32_t)(action->read_0 & 0xfffff000);  // address offset is signed
+
+                switch(action->intern[INTERN_ROM_OFFSET])
+                {
+                case 1: // Data watchpoint unit (DWT)
+                	DWT_Adress = ROM_Table_Adress + (uint32_t)address;
+                	debug_line("Data watchpoint unit (DWT):");
+                	break;
+
+                case 2: // Breakpoint unit (BPU)
+                	BPU_Adress = ROM_Table_Adress + (uint32_t)address;
+                	debug_line("Breakpoint unit (BPU):");
+                	break;
+
+                default:
+                	debug_line("Rom Offset %ld:", action->intern[INTERN_ROM_OFFSET]);
+                	break;
+                }
+
                 debug_line("ROM Table[%ld] : found 0x%08lx", action->intern[INTERN_ROM_OFFSET], address);
                 debug_line("ROM Table[%ld] : address 0x%08lx", action->intern[INTERN_ROM_OFFSET], (int32_t)ROM_Table_Adress + address);
             }
             else
             {
+                switch(action->intern[INTERN_ROM_OFFSET])
+                {
+                case 1: // Data watchpoint unit (DWT)
+                	DWT_Adress = 0;
+                	debug_line("Data watchpoint unit (DWT):");
+                	break;
+
+                case 2: // Breakpoint unit (BPU)
+                	BPU_Adress = 0;
+                	debug_line("Breakpoint unit (BPU):");
+                	break;
+                }
                 debug_line("ROM Table[%ld] : ignoring 0x%08lx", action->intern[INTERN_ROM_OFFSET], action->read_0);
             }
             *(action->cur_phase) = 12;
@@ -356,7 +394,79 @@ static Result check_AP(uint32_t idr, bool first_call, action_data_typ * const ac
             return do_read_ap(action, ROM_Table_Adress + (action->intern[INTERN_ROM_OFFSET] * 4));
         }
 
+        // Data watchpoint unit (DWT)
         else if(15 == *(action->cur_phase))
+        {
+        	if(0 != DWT_Adress)
+        	{
+        		return do_read_ap(action, DWT_Adress);
+        	}
+        	else
+        	{
+        		*(action->cur_phase) = 18;
+        		return ERR_NOT_COMPLETED;
+        	}
+        }
+
+        else if(16 == *(action->cur_phase))
+        {
+            return do_get_Result_data(action);
+        }
+
+        else if(17 == *(action->cur_phase))
+        {
+            if(RESULT_OK == action->result)
+            {
+                uint32_t num = (action->read_0 >>28);
+                debug_line("Device has %ld watchpoints.", num);
+				*(action->cur_phase) = 18;
+				return ERR_NOT_COMPLETED;
+            }
+            else
+            {
+                // step failed
+                debug_line("Failed to read DWT_CTRL (%ld) !", action->result);
+                return action->result;
+            }
+        }
+
+        // Breakpoint unit (BPU)
+        else if(18 == *(action->cur_phase))
+        {
+        	if(0 != BPU_Adress)
+        	{
+        		return do_read_ap(action, BPU_Adress);
+        	}
+        	else
+        	{
+        		*(action->cur_phase) = 21;
+        		return ERR_NOT_COMPLETED;
+        	}
+        }
+
+        else if(19 == *(action->cur_phase))
+        {
+            return do_get_Result_data(action);
+        }
+
+        else if(20 == *(action->cur_phase))
+        {
+            if(RESULT_OK == action->result)
+            {
+                uint32_t num = ((action->read_0 >>4) & 0xf);
+                debug_line("Device has %ld breakpoints.", num);
+				*(action->cur_phase) = 21;
+				return ERR_NOT_COMPLETED;
+            }
+            else
+            {
+                // step failed
+                debug_line("Failed to read BP_CTRL (%ld) !", action->result);
+                return action->result;
+            }
+        }
+
+        else if(21 == *(action->cur_phase))
         {
             debug_line("Done with this AP!");
             return RESULT_OK; // done with this AP

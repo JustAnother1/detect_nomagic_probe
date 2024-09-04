@@ -138,7 +138,7 @@ flash: $(BIN_FOLDER)$(PROJECT).elf
 	@echo ""
 	@echo "flashing"
 	@echo "========"
-	openocd  -f interface/cmsis-dap.cfg -f target/rp2040.cfg -c "program $(BIN_FOLDER)$(PROJECT).elf verify reset exit"
+	openocd  -f interface/cmsis-dap.cfg -f target/rp2040.cfg  -c "adapter speed 5000" -c "program $(BIN_FOLDER)$(PROJECT).elf verify reset exit"
 
 $(BIN_FOLDER)$(PROJECT).uf2: $(BIN_FOLDER)$(PROJECT).elf
 	@echo ""
