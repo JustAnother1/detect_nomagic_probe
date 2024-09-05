@@ -14,9 +14,9 @@ This firmware uses https://github.com/JustAnother1/nomagic_probe[nomagic probe].
 
 == documentation
 
-link:nomagic_probe/doc/overview.asciidoc[overview] of available documentation.
+please refer to the https://github.com/JustAnother1/nomagic_probe[nomagic probe] project for most of the documentation.
 
-Additional documentation can be created
+Additional documentation can be created by doing
 
 +make doc+
 
