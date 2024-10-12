@@ -269,7 +269,7 @@ static bool test_swd_v2(void)
             Result res;
             debug_line(" ");
             debug_line("SWDv2: trying to connect on location %ld/%d (target id: 0x%08lx)....",
-            		location + 1, NUM_CONNECT_LOCATIONS, connect_parameter[location].target_id);
+                    location + 1, NUM_CONNECT_LOCATIONS, connect_parameter[location].target_id);
             res = start_connect(true,
                                 connect_parameter[location].target_id,
                                 connect_parameter[location].apsel);
@@ -348,52 +348,29 @@ static bool test_swd_v2(void)
 
 static Result start_scan(void)
 {
-    Result res;
-    action_data_typ* const action =  book_action_slot();
-    if(NULL == action)
+    if(false == add_action(SWD_SCAN))
     {
-        debug_line("ERROR: could not start scan ! Action queue full!");
         return ERR_QUEUE_FULL_TRY_AGAIN;
-    }
-    action->action = SWD_SCAN;
-    action->is_done = false;
-    action->result = RESULT_OK;
-    res = add_target_action(action);
-    if(RESULT_OK != res)
-    {
-        debug_line("ERROR: could not execute start scan ! adding action failed(%ld)!", res);
     }
     else
     {
-        cur_action = action;
+        return RESULT_OK;
     }
-    return res;
 }
 
 static Result start_connect(bool isSWDv2, uint32_t core_id, uint32_t APsel)
 {
-    Result res;
-    action_data_typ* const action =  book_action_slot();
-    if(NULL == action)
-    {
-        debug_line("ERROR: could not connect to target ! Action queue full!");
-        return ERR_QUEUE_FULL_TRY_AGAIN;
-    }
     swd_isSWDv2 = isSWDv2;
     swd_core_id = core_id;
     swd_APsel = APsel;
-    action->action = SWD_CONNECT;
-    action->is_done = false;
-    action->result = RESULT_OK;
-    res = add_target_action(action);
-    if(RESULT_OK != res)
+
+    if(false == add_action(SWD_CONNECT))
     {
-        debug_line("ERROR: could not execute connect to target ! adding action failed(%ld)!", res);
+        return ERR_QUEUE_FULL_TRY_AGAIN;
     }
     else
     {
-        cur_action = action;
+        return RESULT_OK;
     }
-    return res;
 }
 
