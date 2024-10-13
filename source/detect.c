@@ -99,7 +99,7 @@ bool cmd_target_info(uint32_t loop)
     {
         debug_line("Target Status");
         debug_line("=============");
-        debug_line("target: no target");
+        debug_line("target: detect");
     }
     else
     {
