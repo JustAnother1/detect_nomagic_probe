@@ -1,7 +1,7 @@
 detect-nomagic probe
 ====================
 
-This firmware uses https://github.com/JustAnother1/nomagic_probe[nomagic probe]. It gives you a command line interface on USB serial port. This allows analysis of unsupported chips.
+This firmware uses https://codeberg.org/JustAnother1/nomagic-probe[nomagic probe]. It gives you a command line interface on USB serial port. This allows analysis of unsupported chips.
 
 
 :toc:
@@ -14,7 +14,7 @@ This firmware uses https://github.com/JustAnother1/nomagic_probe[nomagic probe].
 
 == documentation
 
-please refer to the https://github.com/JustAnother1/nomagic_probe[nomagic probe] project for most of the documentation.
+please refer to the https://codeberg.org/JustAnother1/nomagic-probe[nomagic probe] project for most of the documentation.
 
 Additional documentation can be created by doing
 
